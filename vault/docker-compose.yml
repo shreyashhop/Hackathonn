@@ -23,7 +23,6 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
   node-1:
     build:
       context: ./storage_node
@@ -40,7 +39,6 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
   node-2:
     build:
       context: ./storage_node
@@ -57,7 +55,6 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
   node-3:
     build:
       context: ./storage_node
@@ -74,7 +71,6 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
   node-4:
     build:
       context: ./storage_node
@@ -91,7 +87,6 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
   node-5:
     build:
       context: ./storage_node
@@ -108,7 +103,6 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
   vault-node-6:
     build:
       context: ./storage_node
@@ -127,8 +121,9 @@ services:
         aliases:
           - node-6
     restart: unless-stopped
-
   frontend:
+    environment:
+      - COORDINATOR_HOSTPORT=coordinator:8000
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -140,11 +135,9 @@ services:
     networks:
       - vault-net
     restart: unless-stopped
-
 networks:
   vault-net:
     driver: bridge
-
 volumes:
   coordinator-data:
   node-1-data:

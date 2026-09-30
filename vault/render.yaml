@@ -1,0 +1,189 @@
+services:
+  - type: web
+    name: vault-frontend
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /
+    envVars:
+      - key: COORDINATOR_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-coordinator
+          property: hostport
+
+  - type: pserv
+    name: vault-coordinator
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./coordinator/Dockerfile
+    dockerContext: ./coordinator
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: RUNNING_IN_DOCKER
+        value: "true"
+      - key: HEALTH_CHECK_INTERVAL
+        value: "5"
+      - key: REPLICATION_FACTOR
+        value: "3"
+      - key: WRITE_QUORUM
+        value: "2"
+      - key: NODE_1_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-node-1
+          property: hostport
+      - key: NODE_2_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-node-2
+          property: hostport
+      - key: NODE_3_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-node-3
+          property: hostport
+      - key: NODE_4_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-node-4
+          property: hostport
+      - key: NODE_5_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-node-5
+          property: hostport
+      - key: NODE_6_HOSTPORT
+        fromService:
+          type: pserv
+          name: vault-node-6
+          property: hostport
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: vault-frontend
+          property: url
+    disk:
+      name: coordinator-data
+      mountPath: /app/data/coordinator
+      sizeGB: 1
+
+  - type: pserv
+    name: vault-node-1
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./storage_node/Dockerfile
+    dockerContext: ./storage_node
+    envVars:
+      - key: NODE_ID
+        value: "node-1"
+      - key: NODE_PORT
+        value: "8000"
+      - key: NODE_DATA_DIR
+        value: "/data"
+    disk:
+      name: node-1-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: pserv
+    name: vault-node-2
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./storage_node/Dockerfile
+    dockerContext: ./storage_node
+    envVars:
+      - key: NODE_ID
+        value: "node-2"
+      - key: NODE_PORT
+        value: "8000"
+      - key: NODE_DATA_DIR
+        value: "/data"
+    disk:
+      name: node-2-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: pserv
+    name: vault-node-3
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./storage_node/Dockerfile
+    dockerContext: ./storage_node
+    envVars:
+      - key: NODE_ID
+        value: "node-3"
+      - key: NODE_PORT
+        value: "8000"
+      - key: NODE_DATA_DIR
+        value: "/data"
+    disk:
+      name: node-3-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: pserv
+    name: vault-node-4
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./storage_node/Dockerfile
+    dockerContext: ./storage_node
+    envVars:
+      - key: NODE_ID
+        value: "node-4"
+      - key: NODE_PORT
+        value: "8000"
+      - key: NODE_DATA_DIR
+        value: "/data"
+    disk:
+      name: node-4-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: pserv
+    name: vault-node-5
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./storage_node/Dockerfile
+    dockerContext: ./storage_node
+    envVars:
+      - key: NODE_ID
+        value: "node-5"
+      - key: NODE_PORT
+        value: "8000"
+      - key: NODE_DATA_DIR
+        value: "/data"
+    disk:
+      name: node-5-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: pserv
+    name: vault-node-6
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./storage_node/Dockerfile
+    dockerContext: ./storage_node
+    envVars:
+      - key: NODE_ID
+        value: "node-6"
+      - key: NODE_PORT
+        value: "8000"
+      - key: NODE_DATA_DIR
+        value: "/data"
+    disk:
+      name: node-6-data
+      mountPath: /data
+      sizeGB: 1

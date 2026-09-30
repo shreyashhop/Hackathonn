@@ -11,18 +11,13 @@ import FaultLabView from './views/FaultLabView';
 import IntegrityView from './views/IntegrityView';
 import RebalanceView from './views/RebalanceView';
 import PlaceholderView from './views/PlaceholderView';
-
 // Coordinator URL resolution:
 // In dev with Vite proxy: relative path works.
 // Directly hitting coordinator port 8000 as fallback.
-const COORDINATOR_BASE_URL = window.location.port === '3000' && window.location.hostname !== 'localhost'
-  ? `http://${window.location.hostname}:8000`
-  : (window.location.port === '8000' ? '' : 'http://localhost:8000');
-
+const COORDINATOR_BASE_URL = '';
 const WS_BASE_URL = COORDINATOR_BASE_URL
   ? COORDINATOR_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://')
   : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [nodes, setNodes] = useState([]);
@@ -33,10 +28,8 @@ export default function App() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
-
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-
   // Fetch node statuses from coordinator
   const fetchNodes = useCallback(async () => {
     try {
@@ -48,7 +41,6 @@ export default function App() {
       } catch {
         res = await fetch('/nodes');
       }
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setNodes(data);
@@ -61,7 +53,6 @@ export default function App() {
       setRefreshing(false);
     }
   }, []);
-
   // Fetch coordinator health
   const fetchCoordinatorHealth = useCallback(async () => {
     try {
@@ -81,35 +72,28 @@ export default function App() {
       setCoordinatorData(null);
     }
   }, [nodes]);
-
   const refreshAll = useCallback(async () => {
     await Promise.all([fetchNodes(), fetchCoordinatorHealth()]);
   }, [fetchNodes, fetchCoordinatorHealth]);
-
   // Setup WebSocket connection
   useEffect(() => {
     let isSubscribed = true;
-
     function connectWebSocket() {
       const targetWsUrl = `${WS_BASE_URL}/events/ws`;
       console.log('[WebSocket] Connecting to:', targetWsUrl);
-
       try {
         const ws = new WebSocket(targetWsUrl);
         wsRef.current = ws;
-
         ws.onopen = () => {
           if (!isSubscribed) return;
           console.log('[WebSocket] Connection established');
           setWsConnected(true);
         };
-
         ws.onmessage = (event) => {
           if (!isSubscribed) return;
           try {
             const data = JSON.parse(event.data);
             setEvents((prev) => [data, ...prev.slice(0, 49)]);
-
             // Accessible screen reader announcement for significant milestones
             if (data.event_type === 'NODE_DOWN') {
               setLiveAnnouncement(`Storage node ${data.node_id} is down.`);
@@ -124,7 +108,6 @@ export default function App() {
             } else if (data.event_type === 'OBJECT_STORED') {
               setLiveAnnouncement(`Object ${data.object_name || data.object_id || ''} stored successfully.`);
             }
-
             // Trigger node refresh if cluster state or object storage changed
             if ([
               'NODE_STATUS_CHANGED',
@@ -157,14 +140,12 @@ export default function App() {
             console.error('WebSocket parse error:', e);
           }
         };
-
         ws.onclose = () => {
           if (!isSubscribed) return;
           setWsConnected(false);
           console.log('[WebSocket] Connection closed. Retrying in 3s...');
           reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
         };
-
         ws.onerror = (err) => {
           console.warn('[WebSocket] Error occurred');
           ws.close();
@@ -174,25 +155,20 @@ export default function App() {
         reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
       }
     }
-
     connectWebSocket();
-
     return () => {
       isSubscribed = false;
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) wsRef.current.close();
     };
   }, [fetchNodes]);
-
   // Initial data poll and periodic refresh every 6 seconds
   useEffect(() => {
     refreshAll();
     const interval = setInterval(refreshAll, 6000);
     return () => clearInterval(interval);
   }, [refreshAll]);
-
   const healthyNodesCount = nodes.filter((n) => (n.status || '').toLowerCase() === 'healthy').length;
-
   const getPageTitle = () => {
     switch (currentTab) {
       case 'dashboard':
@@ -216,26 +192,22 @@ export default function App() {
         return currentTab.charAt(0).toUpperCase() + currentTab.slice(1).replace('_', ' ');
     }
   };
-
   return (
     <div className="app-container">
       {/* Skip to Main Content Link for Keyboard Navigation */}
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
-
       {/* Screen Reader Live Region for Milestones */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {liveAnnouncement}
       </div>
-
       <Sidebar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         nodeCount={nodes.length || 5}
         healthyNodeCount={healthyNodesCount}
       />
-
       <div className="main-content">
         <Header
           title={getPageTitle()}
@@ -247,7 +219,6 @@ export default function App() {
           refreshing={refreshing}
           lastUpdated={lastUpdated}
         />
-
         <main id="main-content" className="content-scrollable">
           {currentTab === 'dashboard' && (
             <DashboardView
@@ -259,7 +230,6 @@ export default function App() {
               wsConnected={wsConnected}
             />
           )}
-
           {currentTab === 'nodes' && (
             <NodesView
               nodes={nodes}
@@ -267,40 +237,34 @@ export default function App() {
               refreshing={refreshing}
             />
           )}
-
           {currentTab === 'objects' && (
             <ObjectsView
               coordinatorBaseUrl={COORDINATOR_BASE_URL}
               onRefreshNodes={refreshAll}
             />
           )}
-
           {currentTab === 'replication' && (
             <ReplicationView
               coordinatorBaseUrl={COORDINATOR_BASE_URL}
               nodes={nodes}
             />
           )}
-
           {(currentTab === 'repair' || currentTab === 'repairs') && (
             <RepairView
               coordinatorBaseUrl={COORDINATOR_BASE_URL}
             />
           )}
-
           {currentTab === 'integrity' && (
             <IntegrityView
               coordinatorBaseUrl={COORDINATOR_BASE_URL}
             />
           )}
-
           {currentTab === 'fault_lab' && (
             <FaultLabView
               coordinatorBaseUrl={COORDINATOR_BASE_URL}
               onRefreshCluster={refreshAll}
             />
           )}
-
           {currentTab === 'events' && (
             <EventsView
               events={events}
@@ -308,7 +272,6 @@ export default function App() {
               wsConnected={wsConnected}
             />
           )}
-
           {(currentTab === 'rebalancing' || currentTab === 'rebalance') && (
             <RebalanceView
               coordinatorBaseUrl={COORDINATOR_BASE_URL}
@@ -316,7 +279,6 @@ export default function App() {
               onRefreshNodes={refreshAll}
             />
           )}
-
           {!['dashboard', 'nodes', 'events', 'objects', 'replication', 'repair', 'repairs', 'integrity', 'fault_lab', 'rebalancing', 'rebalance'].includes(currentTab) && (
             <PlaceholderView tabId={currentTab} />
           )}
