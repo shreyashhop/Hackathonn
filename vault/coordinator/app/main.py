@@ -15,6 +15,7 @@ from .core.events import manager
 from .core.health_monitor import health_monitor
 from .core.repair_manager import repair_mgr
 from .core.integrity_scanner import integrity_scanner
+from .core.rebalance_manager import rebalance_mgr
 from .api.nodes import router as nodes_router, check_all_nodes
 from .api.events import router as events_router
 from .api.objects import router as objects_router
@@ -22,6 +23,7 @@ from .api.replication import router as replication_router
 from .api.faults import router as faults_router
 from .api.repair import router as repair_router
 from .api.integrity import router as integrity_router
+from .api.rebalance import router as rebalance_router
 from .db.database import db
 
 START_TIME = time.time()
@@ -78,15 +80,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     print("[Coordinator] Initializing Vault Distributed Object Storage Coordinator...")
     print(f"[Coordinator] Configured storage nodes: {[n['id'] for n in settings.STORAGE_NODES]}")
-    # Start active health monitor, repair worker, and integrity scanner
+    # Start active health monitor, repair worker, integrity scanner, and rebalance manager
     health_monitor.start()
     repair_mgr.start()
     integrity_scanner.start()
+    rebalance_mgr.start()
     yield
     print("[Coordinator] Shutting down...")
     await health_monitor.stop()
     await repair_mgr.stop()
     await integrity_scanner.stop()
+    await rebalance_mgr.stop()
 
 
 app = FastAPI(
@@ -133,6 +137,7 @@ app.include_router(replication_router)
 app.include_router(faults_router)
 app.include_router(repair_router)
 app.include_router(integrity_router)
+app.include_router(rebalance_router)
 
 
 @app.get("/")

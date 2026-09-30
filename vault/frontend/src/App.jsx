@@ -9,6 +9,7 @@ import ReplicationView from './views/ReplicationView';
 import RepairView from './views/RepairView';
 import FaultLabView from './views/FaultLabView';
 import IntegrityView from './views/IntegrityView';
+import RebalanceView from './views/RebalanceView';
 import PlaceholderView from './views/PlaceholderView';
 
 // Coordinator URL resolution:
@@ -308,7 +309,15 @@ export default function App() {
             />
           )}
 
-          {!['dashboard', 'nodes', 'events', 'objects', 'replication', 'repair', 'repairs', 'integrity', 'fault_lab'].includes(currentTab) && (
+          {(currentTab === 'rebalancing' || currentTab === 'rebalance') && (
+            <RebalanceView
+              coordinatorBaseUrl={COORDINATOR_BASE_URL}
+              nodes={nodes}
+              onRefreshNodes={refreshAll}
+            />
+          )}
+
+          {!['dashboard', 'nodes', 'events', 'objects', 'replication', 'repair', 'repairs', 'integrity', 'fault_lab', 'rebalancing', 'rebalance'].includes(currentTab) && (
             <PlaceholderView tabId={currentTab} />
           )}
         </main>

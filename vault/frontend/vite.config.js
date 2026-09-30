@@ -40,6 +40,10 @@ export default defineConfig({
         target: process.env.VITE_COORDINATOR_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/rebalance': {
+        target: process.env.VITE_COORDINATOR_URL || 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 });

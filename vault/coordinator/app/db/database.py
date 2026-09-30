@@ -93,6 +93,26 @@ class MetadataDatabase:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_jobs_object ON repair_jobs(object_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_jobs_status ON repair_jobs(status)")
 
+            # Phase 6 Rebalance runs table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS rebalance_runs (
+                    run_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL CHECK(status IN ('PLANNED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+                    started_at TEXT,
+                    completed_at TEXT,
+                    total_objects INTEGER DEFAULT 0,
+                    total_migrations INTEGER DEFAULT 0,
+                    completed_migrations INTEGER DEFAULT 0,
+                    failed_migrations INTEGER DEFAULT 0,
+                    bytes_total INTEGER DEFAULT 0,
+                    bytes_transferred INTEGER DEFAULT 0,
+                    error_message TEXT,
+                    plan_json TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_rebalance_runs_status ON rebalance_runs(status)")
+
             conn.commit()
 
     # ============================================================
@@ -279,13 +299,20 @@ class MetadataDatabase:
             partitioned_replicas = cursor.fetchone()[0]
 
             # Replica distribution per storage node
+            distribution = {f"node-{i}": 0 for i in range(1, 6)}
+            try:
+                cursor.execute("SELECT id FROM storage_nodes")
+                for r in cursor.fetchall():
+                    distribution.setdefault(r["id"], 0)
+            except Exception:
+                pass
+
             cursor.execute("""
                 SELECT node_id, COUNT(*) as count
                 FROM object_replicas
                 WHERE status = 'STORED'
                 GROUP BY node_id
             """)
-            distribution = {f"node-{i}": 0 for i in range(1, 6)}
             for row in cursor.fetchall():
                 distribution[row["node_id"]] = row["count"]
 
@@ -458,6 +485,128 @@ class MetadataDatabase:
                 "failed": counts.get("FAILED", 0),
                 "total": sum(counts.values()),
             }
+
+
+    # ============================================================
+    # Phase 6: Dynamic Node Registration & Rebalance Operations
+    # ============================================================
+
+    def register_storage_node(self, node: Dict[str, Any]) -> Dict[str, Any]:
+        """Registers or updates a storage node in metadata catalog."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO storage_nodes (id, host, port, url, status, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                node["id"],
+                node["host"],
+                node["port"],
+                node["url"],
+                node.get("status", "HEALTHY"),
+                node.get("last_seen", now),
+            ))
+            conn.commit()
+        return node
+
+    def deregister_storage_node(self, node_id: str) -> bool:
+        """Removes a storage node from catalog."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM storage_nodes WHERE id = ?", (node_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def list_storage_nodes(self) -> List[Dict[str, Any]]:
+        """Lists registered storage nodes from catalog."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM storage_nodes ORDER BY id ASC")
+            return [dict(row) for row in cursor.fetchall()]
+
+    def create_rebalance_run(self, run_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Creates a rebalance run record."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO rebalance_runs (
+                    run_id, status, started_at, completed_at,
+                    total_objects, total_migrations, completed_migrations,
+                    failed_migrations, bytes_total, bytes_transferred,
+                    error_message, plan_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                run_data["run_id"],
+                run_data.get("status", "PLANNED"),
+                run_data.get("started_at"),
+                run_data.get("completed_at"),
+                run_data.get("total_objects", 0),
+                run_data.get("total_migrations", 0),
+                run_data.get("completed_migrations", 0),
+                run_data.get("failed_migrations", 0),
+                run_data.get("bytes_total", 0),
+                run_data.get("bytes_transferred", 0),
+                run_data.get("error_message"),
+                run_data.get("plan_json"),
+                run_data.get("created_at", now),
+            ))
+            conn.commit()
+        return self.get_rebalance_run(run_data["run_id"])
+
+    _REBALANCE_RUN_UPDATABLE_COLUMNS = frozenset({
+        "status", "started_at", "completed_at", "total_objects",
+        "total_migrations", "completed_migrations", "failed_migrations",
+        "bytes_total", "bytes_transferred", "error_message", "plan_json",
+    })
+
+    def update_rebalance_run(self, run_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Updates fields of an existing rebalance run. Only whitelisted columns are accepted."""
+        if not updates:
+            return self.get_rebalance_run(run_id)
+        set_clauses = []
+        params = []
+        for k, v in updates.items():
+            if k not in self._REBALANCE_RUN_UPDATABLE_COLUMNS:
+                raise ValueError(f"Column '{k}' is not an allowed update target for rebalance_runs")
+            set_clauses.append(f"{k} = ?")
+            params.append(v)
+        if not set_clauses:
+            return self.get_rebalance_run(run_id)
+        params.append(run_id)
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE rebalance_runs SET {', '.join(set_clauses)} WHERE run_id = ?", params)
+            conn.commit()
+        return self.get_rebalance_run(run_id)
+
+    def get_rebalance_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves a single rebalance run by ID."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM rebalance_runs WHERE run_id = ?", (run_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_active_rebalance_run(self) -> Optional[Dict[str, Any]]:
+        """Returns currently active (PLANNED or RUNNING) rebalance run."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM rebalance_runs WHERE status IN ('PLANNED', 'RUNNING') ORDER BY created_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def list_rebalance_runs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Lists recent rebalance runs."""
+        safe_limit = max(1, min(int(limit), 500))
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM rebalance_runs ORDER BY created_at DESC LIMIT ?", (safe_limit,))
+            return [dict(row) for row in cursor.fetchall()]
 
 
 # Singleton instance

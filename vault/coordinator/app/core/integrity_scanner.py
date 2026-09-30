@@ -131,7 +131,21 @@ class IntegrityScanner:
                         if actual_sha == expected_sha and actual_size == expected_size:
                             # Re-verify replica is marked STORED
                             if replica["status"] != "STORED":
-                                db.update_replica_status(oid, nid, "STORED", actual_size, actual_sha)
+                                all_reps = db.get_replicas_for_object(oid)
+                                other_stored = [
+                                    r for r in all_reps
+                                    if r["node_id"] != nid and r["status"] == "STORED"
+                                    and r.get("sha256") == expected_sha
+                                ]
+                                if len(other_stored) >= settings.REPLICATION_FACTOR:
+                                    try:
+                                        await client.delete(f"{node_url}/delete/{oid}")
+                                    except Exception:
+                                        pass
+                                    db.delete_replica(oid, nid)
+                                    return
+                                else:
+                                    db.update_replica_status(oid, nid, "STORED", actual_size, actual_sha)
 
                             await manager.broadcast("INTEGRITY_CHECK_PASSED", {
                                 "object_id": oid,

@@ -109,6 +109,25 @@ services:
       - vault-net
     restart: unless-stopped
 
+  vault-node-6:
+    build:
+      context: ./storage_node
+      dockerfile: Dockerfile
+    container_name: vault-node-6
+    environment:
+      - NODE_ID=node-6
+      - NODE_PORT=8006
+      - NODE_DATA_DIR=/data
+    ports:
+      - "8006:8006"
+    volumes:
+      - node-6-data:/data
+    networks:
+      vault-net:
+        aliases:
+          - node-6
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
@@ -133,3 +152,4 @@ volumes:
   node-3-data:
   node-4-data:
   node-5-data:
+  node-6-data:

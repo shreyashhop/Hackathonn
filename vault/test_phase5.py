@@ -468,7 +468,7 @@ def main():
     log("TEST 17 — Executing Phase 4 regression (test_phase4.py)...")
     try:
         ensure_cluster_healthy()
-        p = subprocess.run([sys.executable, "test_phase4.py"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([sys.executable, "test_phase4.py"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         assert p.returncode == 0, f"Phase 4 regression failed:\n{p.stdout}\n{p.stderr}"
         log("Phase 4 regression passed (14/14 tests)", "PASS")
         passed_count += 1
@@ -479,7 +479,7 @@ def main():
     log("TEST 18 — Executing Phase 3 regression (test_phase3.py)...")
     try:
         ensure_cluster_healthy()
-        p = subprocess.run([sys.executable, "test_phase3.py"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([sys.executable, "test_phase3.py"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         assert p.returncode == 0, f"Phase 3 regression failed:\n{p.stdout}\n{p.stderr}"
         log("Phase 3 regression passed (13/13 tests)", "PASS")
         passed_count += 1
@@ -490,7 +490,7 @@ def main():
     log("TEST 19 — Executing Phase 2 regression (test_phase2.py)...")
     try:
         ensure_cluster_healthy()
-        p = subprocess.run([sys.executable, "test_phase2.py"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([sys.executable, "test_phase2.py"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         assert p.returncode == 0, f"Phase 2 regression failed:\n{p.stdout}\n{p.stderr}"
         log("Phase 2 regression passed", "PASS")
         passed_count += 1
@@ -501,7 +501,7 @@ def main():
     log("TEST 20 — Executing Phase 1 regression (test_phase1.py)...")
     try:
         ensure_cluster_healthy()
-        p = subprocess.run([sys.executable, "test_phase1.py"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([sys.executable, "test_phase1.py"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         assert p.returncode == 0, f"Phase 1 regression failed:\n{p.stdout}\n{p.stderr}"
         log("Phase 1 regression passed", "PASS")
         passed_count += 1
@@ -512,7 +512,7 @@ def main():
     log("TEST 21 — Executing Phase 0 regression (run_tests.py)...")
     try:
         ensure_cluster_healthy()
-        p = subprocess.run([sys.executable, "run_tests.py"], capture_output=True, text=True, timeout=120)
+        p = subprocess.run([sys.executable, "run_tests.py"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         assert p.returncode == 0, f"Phase 0 regression failed:\n{p.stdout}\n{p.stderr}"
         log("Phase 0 regression passed", "PASS")
         passed_count += 1

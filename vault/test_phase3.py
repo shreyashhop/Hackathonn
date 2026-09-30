@@ -283,6 +283,12 @@ def test_3_through_10_repair_lifecycle():
     assert len(final_stored) == 3, f"Rule 17 violated: expected exactly 3 STORED replicas, found {len(final_stored)}"
     log("TEST 10 PASSED: Desired RF=3 maintained without redundant 4th replica.", "PASS")
 
+    # Verify physical redundant file was actually removed from disk
+    check_failed_node_cmd = f"docker exec vault-{failed_node} test -f /data/objects/{object_id}"
+    res_redundant = subprocess.run(check_failed_node_cmd, shell=True)
+    assert res_redundant.returncode != 0, f"Redundant physical file still exists on {failed_node}!"
+    log(f"Verified physical redundant file on {failed_node} was removed from disk.", "PASS")
+
     # Cleanup test object
     requests.delete(f"{COORDINATOR_URL}/objects/{object_id}", timeout=TIMEOUT)
     log(f"Cleaned up test object {object_id}")

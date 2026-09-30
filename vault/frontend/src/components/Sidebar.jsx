@@ -9,6 +9,7 @@ import {
   Flame,
   Activity,
   Layers,
+  Scale,
 } from 'lucide-react';
 
 const NAV_GROUPS = [
@@ -27,6 +28,7 @@ const NAV_GROUPS = [
       { id: 'replication', label: 'Replication Mesh', icon: Copy },
       { id: 'repair', label: 'Repair Center', icon: Wrench },
       { id: 'integrity', label: 'Data Integrity', icon: ShieldCheck },
+      { id: 'rebalancing', label: 'Rebalancing', icon: Scale },
     ],
   },
   {

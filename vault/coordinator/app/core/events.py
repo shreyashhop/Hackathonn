@@ -11,7 +11,7 @@ class ConnectionManager:
     and broadcasts cluster live events.
     """
 
-    def __init__(self, max_history: int = 50):
+    def __init__(self, max_history: int = 500):
         self.active_connections: List[WebSocket] = []
         self.history: List[Dict[str, Any]] = []
         self.max_history = max_history
